@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — Hemolink</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <style>
+    .strength-bar { height:4px; border-radius:2px; background:#e5e7eb; margin-top:6px; overflow:hidden; }
+    .strength-fill { height:100%; width:0; border-radius:2px; transition:width .3s,background .3s; }
+    .strength-hint { font-size:.73rem; color:var(--ink-soft); margin-top:3px; min-height:1.1em; }
+    .field-error { font-size:.73rem; color:#dc2626; margin-top:3px; display:none; }
+    .input-invalid { border-color:#dc2626 !important; box-shadow:0 0 0 2px rgba(220,38,38,.15) !important; }
+    .pw-wrap { position:relative; }
+    .pw-wrap input { padding-right:52px; }
+    .pw-toggle { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:.8rem; padding:4px; }
+    .check-list { list-style:none; padding:0; margin:6px 0 0; display:grid; grid-template-columns:1fr 1fr; gap:2px 8px; }
+    .check-list li { font-size:.73rem; color:#9ca3af; display:flex; align-items:center; gap:5px; transition:color .2s; }
+    .check-list li.pass { color:#16a34a; }
+    .check-list li::before { content:'○'; font-size:.65rem; flex-shrink:0; }
+    .check-list li.pass::before { content:'✓'; }
+    .form-note { font-size:.73rem; color:var(--ink-soft); margin-top:3px; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="/" class="logo"><div class="logo-drop"></div>Hemolink</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-card fade-in">
+    <h1>Create Account</h1>
+    <p class="subtitle">Join Hemolink and help save lives</p>
+
+    <div class="form-group" style="margin-bottom:1rem;">
+      <label>I am a</label>
+      <div class="role-toggle">
+        <label id="lbl-donor" class="active" onclick="selectRole('donor')">🩸 Donor</label>
+        <label id="lbl-patient" onclick="selectRole('patient')">🏥 Seeking Blood</label>
+      </div>
+      <input type="hidden" id="role" value="donor" />
+    </div>
+
+    <div id="alert-box"></div>
+
+    <div class="auth-form">
+
+      <!-- Email -->
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com"
+               autocomplete="email" oninput="clearFE('email')" />
+        <span class="field-error" id="fe-email"></span>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="password" placeholder="Min. 8 characters"
+                 autocomplete="new-password" oninput="onPwInput()" />
+          <button class="pw-toggle" type="button" onclick="togglePw('password',this)">Show</button>
+        </div>
+        <div class="strength-bar"><div class="strength-fill" id="sw-fill"></div></div>
+        <div class="strength-hint" id="sw-hint"></div>
+        <ul class="check-list" id="pw-checks">
+          <li id="chk-len">8+ characters</li>
+          <li id="chk-upper">Uppercase (A–Z)</li>
+          <li id="chk-lower">Lowercase (a–z)</li>
+          <li id="chk-num">Number (0–9)</li>
+          <li id="chk-sym">Special char (!@#…)</li>
+        </ul>
+        <span class="field-error" id="fe-password"></span>
+      </div>
+
+      <!-- Confirm Password -->
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="confirmPassword" placeholder="Re-enter your password"
+                 autocomplete="new-password" oninput="clearFE('confirmPassword')" />
+          <button class="pw-toggle" type="button" onclick="togglePw('confirmPassword',this)">Show</button>
+        </div>
+        <span class="field-error" id="fe-confirmPassword"></span>
+      </div>
+
+      <!-- Donor-only fields -->
+      <div id="donor-fields">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="bloodGroup">Blood Group</label>
+            <select id="bloodGroup" onchange="clearFE('bloodGroup')">
+              <option value="">Select…</option>
+              <option>A+</option><option>A-</option>
+              <option>B+</option><option>B-</option>
+              <option>AB+</option><option>AB-</option>
+              <option>O+</option><option>O-</option>
+            </select>
+            <span class="field-error" id="fe-bloodGroup"></span>
+          </div>
+          <div class="form-group">
+            <label for="city">City</label>
+            <input type="text" id="city" placeholder="e.g. Kolkata" oninput="clearFE('city')" />
+            <span class="field-error" id="fe-city"></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="phone">Phone Number</label>
+          <input type="tel" id="phone" placeholder="+91 98765 43210"
+                 autocomplete="tel" oninput="clearFE('phone')" />
+          <p class="form-note">Include country code (e.g. +91 for India). Used only for verified blood requests.</p>
+          <span class="field-error" id="fe-phone"></span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full btn-lg" id="reg-btn" onclick="handleRegister()">
+        Create Account
+      </button>
+    </div>
+
+    <div class="auth-footer">
+      Already have an account? <a href="/login.html">Sign in</a>
+    </div>
+  </div>
+</div>
+
+<script src="./js/app.js"></script>
+<script>
+  redirectIfLoggedIn();
+  renderNav();
+
+  function selectRole(role) {
+    document.getElementById('role').value = role;
+    document.getElementById('lbl-donor').classList.toggle('active', role === 'donor');
+    document.getElementById('lbl-patient').classList.toggle('active', role === 'patient');
+    document.getElementById('donor-fields').style.display = role === 'donor' ? '' : 'none';
+  }
+
+  function togglePw(id, btn) {
+    const inp = document.getElementById(id);
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
+  }
+
+  // Password strength checker
+  const PW_RULES = [
+    { id:'chk-len',   fn: p => p.length >= 8 },
+    { id:'chk-upper', fn: p => /[A-Z]/.test(p) },
+    { id:'chk-lower', fn: p => /[a-z]/.test(p) },
+    { id:'chk-num',   fn: p => /[0-9]/.test(p) },
+    { id:'chk-sym',   fn: p => /[^A-Za-z0-9]/.test(p) },
+  ];
+  const SW_COLORS = ['','#dc2626','#f97316','#eab308','#22c55e','#16a34a'];
+  const SW_LABELS = ['','Very weak','Weak','Fair','Strong','Very strong'];
+
+  function onPwInput() {
+    clearFE('password');
+    const pw = document.getElementById('password').value;
+    let score = 0;
+    PW_RULES.forEach(({ id, fn }) => {
+      const ok = fn(pw);
+      document.getElementById(id).classList.toggle('pass', ok);
+      if (ok) score++;
+    });
+    const fill = document.getElementById('sw-fill');
+    fill.style.width = pw ? `${score * 20}%` : '0';
+    fill.style.background = pw ? SW_COLORS[score] : '';
+    document.getElementById('sw-hint').textContent = pw ? SW_LABELS[score] : '';
+  }
+
+  // Field-level error helpers
+  function showFE(field, msg) {
+    const el = document.getElementById(`fe-${field}`);
+    const inp = document.getElementById(field);
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+    if (inp) inp.classList.add('input-invalid');
+  }
+  function clearFE(field) {
+    const el = document.getElementById(`fe-${field}`);
+    const inp = document.getElementById(field);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+    if (inp) inp.classList.remove('input-invalid');
+  }
+
+  // Client-side validation — mirrors server rules exactly
+  function validate() {
+    let ok = true;
+    const email = document.getElementById('email').value.trim();
+    const emailRE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!email)                  { showFE('email', 'Email is required.'); ok = false; }
+    else if (!emailRE.test(email)) { showFE('email', 'Enter a valid email address.'); ok = false; }
+
+    const pw = document.getElementById('password').value;
+    if (!pw) { showFE('password', 'Password is required.'); ok = false; }
+    else {
+      const missing = [];
+      if (pw.length < 8)              missing.push('8+ characters');
+      if (!/[A-Z]/.test(pw))          missing.push('uppercase letter');
+      if (!/[a-z]/.test(pw))          missing.push('lowercase letter');
+      if (!/[0-9]/.test(pw))          missing.push('number');
+      if (!/[^A-Za-z0-9]/.test(pw))   missing.push('special character');
+      if (pw.length > 128)            missing.push('max 128 characters');
+      if (missing.length) { showFE('password', `Needs: ${missing.join(', ')}.`); ok = false; }
+    }
+
+    const cpw = document.getElementById('confirmPassword').value;
+    if (!cpw)       { showFE('confirmPassword', 'Please confirm your password.'); ok = false; }
+    else if (cpw !== pw) { showFE('confirmPassword', 'Passwords do not match.'); ok = false; }
+
+    if (document.getElementById('role').value === 'donor') {
+      const bg    = document.getElementById('bloodGroup').value;
+      const city  = document.getElementById('city').value.trim();
+      const phone = document.getElementById('phone').value.trim();
+      const validBG = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+
+      if (!bg || !validBG.includes(bg)) { showFE('bloodGroup', 'Please select your blood group.'); ok = false; }
+      if (city.length < 2)  { showFE('city', 'City name must be at least 2 characters.'); ok = false; }
+      if (city.length > 100){ showFE('city', 'City name is too long.'); ok = false; }
+
+      const phoneRE = /^\+?[\d\s\-(). ]{7,20}$/;
+      if (!phone)               { showFE('phone', 'Phone number is required.'); ok = false; }
+      else if (!phoneRE.test(phone)) { showFE('phone', 'Enter a valid phone number (e.g. +91 98765 43210).'); ok = false; }
+    }
+
+    return ok;
+  }
+
+  async function handleRegister() {
+    clearAlert('alert-box');
+    if (!validate()) {
+      // Scroll to first error
+      const firstErr = document.querySelector('.input-invalid');
+      if (firstErr) firstErr.scrollIntoView({ behavior:'smooth', block:'center' });
+      return;
+    }
+
+    const role = document.getElementById('role').value;
+    const body = {
+      email:           document.getElementById('email').value.trim(),
+      password:        document.getElementById('password').value,
+      confirmPassword: document.getElementById('confirmPassword').value,
+      role,
+    };
+    if (role === 'donor') {
+      body.bloodGroup = document.getElementById('bloodGroup').value;
+      body.city       = document.getElementById('city').value.trim();
+      body.phone      = document.getElementById('phone').value.trim();
+    }
+
+    const btn = document.getElementById('reg-btn');
+    setBtnLoading(btn, true);
+    try {
+      const res = await API.post('/auth/register', body);
+      if (!res.ok) {
+        if (res.data.fields) res.data.fields.forEach(f => showFE(f.field, f.msg));
+        showAlert('alert-box', res.data.error || 'Registration failed.');
+      } else {
+        Auth.setSession(res.data.token, res.data.user);
+        showToast('Account created! Welcome to Hemolink 🎉', 'success');
+        setTimeout(() => window.location.href = '/dashboard.html', 800);
+      }
+    } catch {
+      showAlert('alert-box', 'Network error. Please check your connection and try again.');
+    } finally {
+      setBtnLoading(btn, false);
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') handleRegister(); });
+</script>
+</body>
+</html>

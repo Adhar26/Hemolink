@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Hemolink</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <style>
+    .field-error { font-size:.73rem; color:#dc2626; margin-top:3px; display:none; }
+    .input-invalid { border-color:#dc2626 !important; box-shadow:0 0 0 2px rgba(220,38,38,.15) !important; }
+    .form-note { font-size:.73rem; color:var(--ink-soft); margin-top:3px; }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+    .info-item label { font-size:.72rem; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.06em; display:block; margin-bottom:2px; }
+    .info-item span { font-size:.95rem; color:var(--ink); }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="/" class="logo"><div class="logo-drop"></div>Hemolink</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav>
+
+<div class="container" style="max-width:720px;margin:2rem auto;padding:0 1rem;">
+
+  <!-- Header -->
+  <div style="margin-bottom:2rem;">
+    <h1 id="dash-greeting" style="margin:0;font-size:1.6rem;">Welcome back</h1>
+    <p id="dash-subtitle" style="color:var(--ink-soft);margin:.25rem 0 0;"></p>
+  </div>
+
+  <!-- Account info card -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h2 style="font-size:1rem;margin:0 0 1rem;">Account</h2>
+    <div class="info-grid">
+      <div class="info-item"><label>Email</label><span id="info-email">—</span></div>
+      <div class="info-item"><label>Role</label><span id="info-role">—</span></div>
+      <div class="info-item"><label>Member Since</label><span id="info-since">—</span></div>
+    </div>
+  </div>
+
+  <!-- Availability (donor only) -->
+  <div id="avail-section" class="card" style="display:none;margin-bottom:1.5rem;">
+    <h2 style="font-size:1rem;margin:0 0 .75rem;">Availability Status</h2>
+    <p style="font-size:.85rem;color:var(--ink-soft);margin:0 0 .75rem;">
+      Let seekers know if you're available to donate.
+    </p>
+    <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+      <button class="btn btn-sm avail-pill available"    onclick="setAvailability('available')">✅ Available</button>
+      <button class="btn btn-sm avail-pill recently_donated" onclick="setAvailability('recently_donated')">🔄 Recently Donated</button>
+      <button class="btn btn-sm avail-pill unavailable" onclick="setAvailability('unavailable')">⛔ Unavailable</button>
+    </div>
+  </div>
+
+  <!-- Donor profile form (donor only) -->
+  <div id="donor-form" class="card" style="display:none;margin-bottom:1.5rem;">
+    <h2 style="font-size:1rem;margin:0 0 1rem;">Donor Profile</h2>
+    <div id="form-alert"></div>
+
+    <div style="display:flex;flex-direction:column;gap:.875rem;">
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label for="d-name">Full Name</label>
+          <input type="text" id="d-name" placeholder="Your full name" oninput="clearFE('d-name')" />
+          <span class="field-error" id="fe-d-name"></span>
+        </div>
+        <div class="form-group" style="flex:0 0 140px">
+          <label for="d-blood">Blood Group</label>
+          <select id="d-blood" onchange="clearFE('d-blood')">
+            <option value="">Select…</option>
+            <option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option>
+            <option>AB+</option><option>AB-</option>
+            <option>O+</option><option>O-</option>
+          </select>
+          <span class="field-error" id="fe-d-blood"></span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex:1">
+          <label for="d-city">City</label>
+          <input type="text" id="d-city" placeholder="Your city" oninput="clearFE('d-city')" />
+          <span class="field-error" id="fe-d-city"></span>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label for="d-phone">Phone Number</label>
+          <input type="tel" id="d-phone" placeholder="+91 98765 43210" oninput="clearFE('d-phone')" />
+          <p class="form-note">Include country code</p>
+          <span class="field-error" id="fe-d-phone"></span>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group" style="flex:0 0 140px">
+          <label for="d-weight">Weight (kg)</label>
+          <input type="number" id="d-weight" placeholder="e.g. 65" min="40" max="250" step="0.1"
+                 oninput="clearFE('d-weight')" />
+          <p class="form-note">Min. 50 kg to donate</p>
+          <span class="field-error" id="fe-d-weight"></span>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label for="d-last-donation">Last Donation Date</label>
+          <input type="date" id="d-last-donation" oninput="clearFE('d-last-donation')" />
+          <span class="field-error" id="fe-d-last-donation"></span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="d-notes">Notes <span style="font-weight:400;text-transform:none;">(optional)</span></label>
+        <textarea id="d-notes" rows="2" placeholder="Any notes for seekers…" maxlength="500"
+                  style="resize:vertical;font-family:inherit;" oninput="clearFE('d-notes')"></textarea>
+        <span class="field-error" id="fe-d-notes"></span>
+      </div>
+
+      <div class="form-group">
+        <label>Location <span style="font-weight:400;text-transform:none;">(optional — helps nearby searches)</span></label>
+        <div class="form-row" style="gap:.5rem;align-items:flex-end;">
+          <div class="form-group" style="flex:1;margin:0">
+            <input type="number" id="d-lat" placeholder="Latitude" step="any" min="-90" max="90" />
+          </div>
+          <div class="form-group" style="flex:1;margin:0">
+            <input type="number" id="d-lng" placeholder="Longitude" step="any" min="-180" max="180" />
+          </div>
+          <button class="btn btn-outline btn-sm" style="white-space:nowrap;margin-bottom:0" onclick="autofillLocation()">
+            📍 Use My Location
+          </button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="save-btn" onclick="saveProfile()">Save Profile</button>
+    </div>
+  </div>
+
+  <!-- Patient message -->
+  <div id="patient-msg" class="card" style="display:none;text-align:center;padding:2rem;">
+    <p style="font-size:1.5rem;margin:0 0 .5rem;">🏥</p>
+    <h2 style="margin:0 0 .5rem;font-size:1rem;">Looking for donors?</h2>
+    <p style="color:var(--ink-soft);margin:0 0 1rem;font-size:.9rem;">
+      Use the search page to find available blood donors near you.
+    </p>
+    <a href="/search.html" class="btn btn-primary">Find Donors</a>
+  </div>
+
+</div>
+
+<script src="./js/app.js"></script>
+<script>
+  if (!requireAuth()) throw new Error('Not authenticated');
+  renderNav();
+
+  const user = Auth.getUser();
+  document.getElementById('dash-greeting').textContent = 'Welcome back';
+  document.getElementById('dash-subtitle').textContent = user?.email || '';
+  document.getElementById('info-email').textContent = user?.email || '—';
+  document.getElementById('info-role').textContent =
+    user?.role === 'donor' ? '🩸 Donor' : '🏥 Blood Seeker';
+
+  if (user?.role === 'donor') {
+    document.getElementById('donor-form').style.display = 'flex';
+    document.getElementById('avail-section').style.display = 'block';
+    loadDonorProfile();
+  } else {
+    document.getElementById('patient-msg').style.display = 'block';
+  }
+
+  // ── Field error helpers ────────────────────────────────────
+  function showFE(field, msg) {
+    const el = document.getElementById(`fe-${field}`);
+    const inp = document.getElementById(field);
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+    if (inp) inp.classList.add('input-invalid');
+  }
+  function clearFE(field) {
+    const el = document.getElementById(`fe-${field}`);
+    const inp = document.getElementById(field);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+    if (inp) inp.classList.remove('input-invalid');
+  }
+
+  // ── Load profile — populates form + account info ───────────
+  async function loadDonorProfile() {
+    try {
+      // Load account info (created_at)
+      const uRes = await API.get('/auth/profile', true);
+      if (uRes?.ok) {
+        const u = uRes.data;
+        document.getElementById('info-since').textContent =
+          formatDate(u.created_at || u.createdAt);
+      }
+
+      // Load donor profile if it exists
+      const dRes = await API.get('/donors', true);
+      if (!dRes?.ok) return;
+
+      // Find this user's own donor entry from the list (cheaper than a dedicated endpoint)
+      // Better: use the profile endpoint and cross-ref; here we just pre-fill from the save response
+      // which sets the form after save. On first load, fields stay blank until saved.
+    } catch { /* silent — user may not have a profile yet */ }
+  }
+
+  // ── Save profile ───────────────────────────────────────────
+  async function saveProfile() {
+    clearAlert('form-alert');
+
+    const name   = document.getElementById('d-name').value.trim();
+    const blood  = document.getElementById('d-blood').value;
+    const city   = document.getElementById('d-city').value.trim();
+    const phone  = document.getElementById('d-phone').value.trim();
+    const weight = document.getElementById('d-weight').value;
+    const lastDon= document.getElementById('d-last-donation').value;
+    const lat    = document.getElementById('d-lat').value;
+    const lng    = document.getElementById('d-lng').value;
+    const notes  = document.getElementById('d-notes').value.trim();
+
+    // Client-side validation
+    let valid = true;
+    const validBG = ['A+','A-','B+','B-','AB+','AB-','O+','O-'];
+    const phoneRE  = /^\+?[\d\s\-(). ]{7,20}$/;
+
+    if (!name || name.length < 2)      { showFE('d-name', 'Name must be at least 2 characters.'); valid = false; }
+    if (!blood || !validBG.includes(blood)) { showFE('d-blood', 'Please select your blood group.'); valid = false; }
+    if (!city || city.length < 2)      { showFE('d-city', 'City must be at least 2 characters.'); valid = false; }
+    if (!phone)                        { showFE('d-phone', 'Phone number is required.'); valid = false; }
+    else if (!phoneRE.test(phone))     { showFE('d-phone', 'Enter a valid phone number (e.g. +91 98765 43210).'); valid = false; }
+    if (weight && (parseFloat(weight) < 40 || parseFloat(weight) > 250)) {
+      showFE('d-weight', 'Weight must be between 40 and 250 kg.'); valid = false;
+    }
+    if (lastDon && new Date(lastDon) > new Date()) {
+      showFE('d-last-donation', 'Last donation date cannot be in the future.'); valid = false;
+    }
+    if (notes.length > 500) { showFE('d-notes', 'Notes cannot exceed 500 characters.'); valid = false; }
+
+    if (!valid) return;
+
+    const body = { name, bloodGroup: blood, city, phone };
+    if (weight)    body.weightKg = parseFloat(weight);
+    if (lastDon)   body.lastDonationDate = lastDon;
+    if (lat && lng){ body.lat = parseFloat(lat); body.lng = parseFloat(lng); }
+    if (notes)     body.notes = notes;
+
+    const btn = document.getElementById('save-btn');
+    setBtnLoading(btn, true);
+    try {
+      const res = await API.post('/donors', body, true);
+      if (!res.ok) {
+        if (res.data.fields) res.data.fields.forEach(f => showFE(`d-${f.field}`, f.msg));
+        showAlert('form-alert', res.data.error || 'Save failed. Check the fields above.');
+      } else {
+        // Re-populate form with server-confirmed values
+        const d = res.data.donor;
+        document.getElementById('d-name').value  = d.name || '';
+        document.getElementById('d-blood').value = d.bloodGroup || '';
+        document.getElementById('d-city').value  = d.city || '';
+        document.getElementById('d-phone').value = d.phone || '';
+        if (d.weightKg)          document.getElementById('d-weight').value = d.weightKg;
+        if (d.lastDonationDate)  document.getElementById('d-last-donation').value = d.lastDonationDate.slice(0,10);
+        if (d.lat)               document.getElementById('d-lat').value = d.lat;
+        if (d.lng)               document.getElementById('d-lng').value = d.lng;
+        if (d.notes)             document.getElementById('d-notes').value = d.notes || '';
+        showAlert('form-alert', '✅ Profile saved successfully!', 'success');
+        showToast('Profile saved!', 'success');
+      }
+    } catch {
+      showAlert('form-alert', 'Network error. Please try again.');
+    } finally {
+      setBtnLoading(btn, false);
+    }
+  }
+
+  // ── Availability ───────────────────────────────────────────
+  async function setAvailability(status) {
+    try {
+      const res = await API.patch('/donors/availability', { availability: status }, true);
+      if (res.ok) {
+        showToast('Availability updated.', 'success');
+        document.querySelectorAll('.avail-pill').forEach(p => {
+          const isActive = [...p.classList].some(c => c === status);
+          p.classList.toggle('active', isActive);
+          p.style.opacity = isActive ? '1' : '.65';
+        });
+      } else {
+        showToast(res.data.error || 'Update failed.', 'error');
+      }
+    } catch {
+      showToast('Network error.', 'error');
+    }
+  }
+
+  // ── Geolocation ────────────────────────────────────────────
+  async function autofillLocation() {
+    try {
+      showToast('Getting your location…', 'info');
+      const { lat, lng } = await getGeolocation();
+      document.getElementById('d-lat').value = lat.toFixed(6);
+      document.getElementById('d-lng').value = lng.toFixed(6);
+      showToast('Location filled in!', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+</script>
+</body>
+</html>

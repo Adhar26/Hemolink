@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Find Donors — Hemolink</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+<nav>
+  <a href="/" class="logo"><div class="logo-drop"></div>Hemolink</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav>
+
+<div class="page-hero">
+  <h1>Find a Blood Donor</h1>
+  <p>Search by blood group, city, or your location</p>
+</div>
+
+<div class="container" style="padding-top:0;padding-bottom:3rem;">
+  <!-- Filters -->
+  <div class="filters fade-in">
+    <div class="form-group">
+      <label>Blood Group</label>
+      <select id="f-blood">
+        <option value="">Any</option>
+        <option>A+</option><option>A-</option>
+        <option>B+</option><option>B-</option>
+        <option>AB+</option><option>AB-</option>
+        <option>O+</option><option>O-</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>City</label>
+      <input type="text" id="f-city" placeholder="Kolkata, Mumbai…" />
+    </div>
+    <div class="form-group">
+      <label>Radius (km)</label>
+      <input type="number" id="f-radius" value="50" min="1" max="200" />
+    </div>
+    <div class="form-group">
+      <label>&nbsp;</label>
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn btn-primary" style="flex:1" onclick="doSearch(1)">Search</button>
+        <button class="btn btn-ghost" title="Use my location" onclick="useMyLocation()">📍</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden lat/lng -->
+  <input type="hidden" id="f-lat" />
+  <input type="hidden" id="f-lng" />
+
+  <!-- Results -->
+  <div id="results-header" style="margin-top:1.5rem;display:flex;justify-content:space-between;align-items:center;">
+    <span id="results-count" style="font-size:0.9rem;color:var(--ink-soft);"></span>
+  </div>
+
+  <div id="donor-grid" class="donor-grid"></div>
+  <div id="empty-state" class="empty-state" style="display:none;">
+    <div class="icon">🩸</div>
+    <h3>No donors found</h3>
+    <p>Try a different blood group, city, or widen the radius.</p>
+  </div>
+  <div id="loading-state" class="empty-state" style="display:none;">
+    <div style="margin-bottom:1rem;"><span class="spinner" style="border-color:var(--red-mid);border-top-color:var(--red);width:32px;height:32px;border-width:4px;"></span></div>
+    <p>Searching for donors…</p>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- Contact modal (for auth'd users) -->
+<div id="contact-modal" style="display:none;position:fixed;inset:0;background:rgba(15,10,11,0.5);z-index:200;align-items:center;justify-content:center;">
+  <div class="card fade-in" style="max-width:380px;width:90%;border-radius:var(--radius-lg);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h3 style="font-family:var(--font-display);font-weight:700;color:var(--red-deep);" id="modal-name"></h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body" style="font-size:0.9rem;color:var(--ink-soft);line-height:1.8;"></div>
+    <div style="margin-top:1.25rem;">
+      <p style="font-size:0.8rem;color:var(--ink-soft);">Contact this donor directly to arrange a donation.</p>
+    </div>
+  </div>
+</div>
+
+<footer><p>© 2025 Hemolink · <a href="/" style="color:var(--red);">Home</a></p></footer>
+
+<script src="./js/app.js"></script>
+<script>
+  renderNav();
+  let currentPage = 1;
+
+  // Auto search on load
+  window.addEventListener('DOMContentLoaded', () => doSearch(1));
+
+  async function doSearch(page = 1) {
+    currentPage = page;
+    const bloodGroup = document.getElementById('f-blood').value;
+    const city       = document.getElementById('f-city').value.trim();
+    const radius     = document.getElementById('f-radius').value || 50;
+    const lat        = document.getElementById('f-lat').value;
+    const lng        = document.getElementById('f-lng').value;
+
+    const params = new URLSearchParams({ page });
+    if (bloodGroup) params.set('bloodGroup', bloodGroup);
+    if (city)       params.set('city', city);
+    if (lat && lng) { params.set('lat', lat); params.set('lng', lng); params.set('radius', radius); }
+
+    setLoading(true);
+    try {
+      const res = await API.get('/donors?' + params.toString());
+      if (!res.ok) { showToast('Search failed. Please try again.', 'error'); return; }
+      renderResults(res.data);
+    } catch {
+      showToast('Network error.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setLoading(on) {
+    document.getElementById('loading-state').style.display = on ? 'block' : 'none';
+    document.getElementById('donor-grid').style.display = on ? 'none' : 'grid';
+    document.getElementById('empty-state').style.display = 'none';
+  }
+
+  function renderResults({ donors, total, page, pages }) {
+    const grid = document.getElementById('donor-grid');
+    const empty = document.getElementById('empty-state');
+    const count = document.getElementById('results-count');
+
+    count.textContent = total ? `${total} donor${total !== 1 ? 's' : ''} found` : '';
+
+    if (!donors.length) { grid.innerHTML = ''; empty.style.display = 'block'; renderPagination(0, 0); return; }
+    empty.style.display = 'none';
+
+    grid.innerHTML = donors.map(d => `
+      <div class="donor-card fade-in">
+        <div class="donor-card-header">
+          <div>
+            <div class="donor-name">${escHtml(d.name)}</div>
+            <div style="margin-top:0.25rem;">${availBadge(d.availability)}</div>
+          </div>
+          <span class="badge-blood">${escHtml(d.bloodGroup)}</span>
+        </div>
+        <div class="donor-meta">
+          <span>📍 ${escHtml(d.city)}</span>
+          ${d.lastDonationDate ? `<span>🗓 Last donated: ${formatDate(d.lastDonationDate)}</span>` : ''}
+          ${d.weight ? `<span>⚖️ ${d.weight} kg</span>` : ''}
+        </div>
+        <div class="donor-card-footer">
+          <span style="font-size:0.8rem;color:var(--ink-soft);">ID: ${escHtml(d.id.slice(-6))}</span>
+          <button class="btn btn-primary btn-sm" onclick="viewContact('${escHtml(d.id)}','${escHtml(d.name)}')">
+            Contact
+          </button>
+        </div>
+      </div>
+    `).join('');
+
+    renderPagination(page, pages);
+  }
+
+  function renderPagination(page, pages) {
+    const el = document.getElementById('pagination');
+    if (pages <= 1) { el.innerHTML = ''; return; }
+    let html = '';
+    if (page > 1) html += `<button class="btn btn-outline btn-sm" onclick="doSearch(${page-1})">← Prev</button>`;
+    html += `<span style="font-size:0.875rem;color:var(--ink-soft);">Page ${page} of ${pages}</span>`;
+    if (page < pages) html += `<button class="btn btn-outline btn-sm" onclick="doSearch(${page+1})">Next →</button>`;
+    el.innerHTML = html;
+  }
+
+  async function viewContact(id, name) {
+    if (!Auth.isLoggedIn()) {
+      showToast('Sign in to view contact details.', 'info');
+      setTimeout(() => window.location.href = '/login.html', 1200);
+      return;
+    }
+    document.getElementById('modal-name').textContent = name;
+    document.getElementById('modal-body').innerHTML = '<span class="spinner" style="border-top-color:var(--red);"></span>';
+    document.getElementById('contact-modal').style.display = 'flex';
+
+    try {
+      const res = await API.get('/donors/' + id, true);
+      if (!res.ok) { document.getElementById('modal-body').textContent = 'Could not load contact info.'; return; }
+      const d = res.data;
+      document.getElementById('modal-body').innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:0.6rem;">
+          <div><strong>Blood Group:</strong> <span class="badge-blood">${escHtml(d.bloodGroup || d.blood_group)}</span></div>
+          <div><strong>City:</strong> ${escHtml(d.city)}</div>
+          <div><strong>Phone:</strong> <a href="tel:${escHtml(d.phone)}" style="color:var(--red);font-weight:600;">${escHtml(d.phone)}</a></div>
+          <div><strong>Availability:</strong> ${availBadge(d.availability)}</div>
+          ${d.lastDonationDate ? `<div><strong>Last Donated:</strong> ${formatDate(d.lastDonationDate)}</div>` : ''}
+        </div>`;
+    } catch {
+      document.getElementById('modal-body').textContent = 'Network error.';
+    }
+  }
+
+  function closeModal() { document.getElementById('contact-modal').style.display = 'none'; }
+
+  // Close modal on backdrop click
+  document.getElementById('contact-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('contact-modal')) closeModal();
+  });
+
+  async function useMyLocation() {
+    try {
+      showToast('Getting your location…', 'info');
+      const { lat, lng } = await getGeolocation();
+      document.getElementById('f-lat').value = lat;
+      document.getElementById('f-lng').value = lng;
+      showToast('Location found! Searching nearby donors.', 'success');
+      doSearch(1);
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // Allow Enter key on inputs
+  ['f-blood','f-city','f-radius'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(1); });
+  });
+</script>
+</body>
+</html>

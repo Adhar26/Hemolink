@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In — Hemolink</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <style>
+    .pw-wrap { position:relative; }
+    .pw-wrap input { padding-right:52px; }
+    .pw-toggle { position:absolute; right:10px; top:50%; transform:translateY(-50%); background:none; border:none; cursor:pointer; color:var(--ink-soft); font-size:.8rem; padding:4px; }
+    .field-error { font-size:.73rem; color:#dc2626; margin-top:3px; display:none; }
+    .input-invalid { border-color:#dc2626 !important; box-shadow:0 0 0 2px rgba(220,38,38,.15) !important; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="/" class="logo"><div class="logo-drop"></div>Hemolink</a>
+  <div class="nav-links" id="nav-links"></div>
+</nav>
+
+<div class="auth-wrap">
+  <div class="auth-card fade-in">
+    <h1>Welcome back</h1>
+    <p class="subtitle">Sign in to your Hemolink account</p>
+    <div id="alert-box"></div>
+    <div class="auth-form">
+
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" placeholder="you@example.com"
+               autocomplete="email" oninput="clearFE('email')" />
+        <span class="field-error" id="fe-email"></span>
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="password" placeholder="••••••••"
+                 autocomplete="current-password" oninput="clearFE('password')" />
+          <button class="pw-toggle" type="button" onclick="togglePw()">Show</button>
+        </div>
+        <span class="field-error" id="fe-password"></span>
+      </div>
+
+      <button class="btn btn-primary btn-full btn-lg" id="login-btn" onclick="handleLogin()">
+        Sign In
+      </button>
+    </div>
+    <div class="auth-footer">
+      Don't have an account? <a href="/register.html">Create one</a>
+    </div>
+  </div>
+</div>
+
+<script src="./js/app.js"></script>
+<script>
+  redirectIfLoggedIn();
+  renderNav();
+
+  function togglePw() {
+    const inp = document.getElementById('password');
+    const btn = document.querySelector('.pw-toggle');
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.textContent = show ? 'Hide' : 'Show';
+  }
+
+  function showFE(field, msg) {
+    const el = document.getElementById(`fe-${field}`);
+    const inp = document.getElementById(field);
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+    if (inp) inp.classList.add('input-invalid');
+  }
+  function clearFE(field) {
+    const el = document.getElementById(`fe-${field}`);
+    const inp = document.getElementById(field);
+    if (el) { el.textContent = ''; el.style.display = 'none'; }
+    if (inp) inp.classList.remove('input-invalid');
+  }
+
+  async function handleLogin() {
+    clearAlert('alert-box');
+    clearFE('email'); clearFE('password');
+
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const emailRE  = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    let valid = true;
+
+    if (!email)                   { showFE('email', 'Email is required.'); valid = false; }
+    else if (!emailRE.test(email)){ showFE('email', 'Enter a valid email address.'); valid = false; }
+    if (!password)                { showFE('password', 'Password is required.'); valid = false; }
+
+    if (!valid) return;
+
+    const btn = document.getElementById('login-btn');
+    setBtnLoading(btn, true);
+    try {
+      const res = await API.post('/auth/login', { email, password });
+      if (!res.ok) {
+        showAlert('alert-box', res.data.error || 'Invalid email or password.');
+      } else {
+        Auth.setSession(res.data.token, res.data.user);
+        showToast('Welcome back!', 'success');
+        setTimeout(() => window.location.href = '/dashboard.html', 600);
+      }
+    } catch {
+      showAlert('alert-box', 'Network error. Please check your connection and try again.');
+    } finally {
+      setBtnLoading(btn, false);
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+</script>
+</body>
+</html>
